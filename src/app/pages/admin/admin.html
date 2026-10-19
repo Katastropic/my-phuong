@@ -1,0 +1,70 @@
+<div class="mx-auto max-w-4xl px-4 py-12 sm:px-6">
+  @if (!unlocked()) {
+    <form class="card mx-auto max-w-sm p-8" (submit)="$event.preventDefault(); unlock(pin.value)">
+      <h1 class="font-display text-2xl font-semibold text-brand-900">Staff login</h1>
+      <label class="field-label mt-6" for="pin">PIN</label>
+      <input #pin id="pin" type="password" inputmode="numeric" autocomplete="current-password" class="field-input" (input)="pinError.set(false)" />
+      @if (pinError()) {
+        <p class="field-error">That PIN isn't right.</p>
+      }
+      <button type="submit" class="btn-primary mt-6 w-full">View bookings</button>
+    </form>
+  } @else {
+    <div class="flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <h1 class="font-display text-3xl font-semibold text-brand-900">Bookings</h1>
+        <p class="mt-1 text-sm text-stone-500">Bookings made in this browser.</p>
+      </div>
+      <label class="flex items-center gap-2 text-sm text-stone-600">
+        <input type="checkbox" class="accent-brand-600" [checked]="showPast()" (change)="showPast.set(!showPast())" />
+        Show past bookings
+      </label>
+    </div>
+
+    @for (day of days(); track day.date) {
+      <section class="mt-10">
+        <h2 class="mb-3 flex items-center gap-2 text-sm font-semibold tracking-wide text-brand-700 uppercase">
+          {{ day.date | longDate }}
+          @if (day.today) {
+            <span class="rounded-full bg-brand-100 px-2 py-0.5 text-xs text-brand-700 normal-case">Today</span>
+          }
+        </h2>
+        <ul class="card divide-y divide-stone-100">
+          @for (b of day.bookings; track b.id) {
+            <li class="flex flex-wrap items-start gap-x-6 gap-y-2 p-4" [class.opacity-50]="b.status === 'cancelled'">
+              <div class="w-28 shrink-0 font-semibold text-stone-900">
+                {{ b.start | time12 }}
+                <span class="block text-xs font-normal text-stone-400">to {{ b.end | time12 }}</span>
+              </div>
+              <div class="min-w-0 flex-1">
+                <p class="font-medium text-stone-900" [class.line-through]="b.status === 'cancelled'">
+                  {{ b.customer.name }} · {{ serviceName(b.serviceId) }}
+                </p>
+                <p class="text-sm text-stone-500">
+                  <a class="hover:text-brand-700" [href]="'tel:' + b.customer.phone">{{ b.customer.phone }}</a> ·
+                  <a class="hover:text-brand-700" [href]="'mailto:' + b.customer.email">{{ b.customer.email }}</a>
+                  @if (showStylist) {
+                    · with {{ stylistName(b.stylistId) }}
+                  }
+                </p>
+                @if (b.customer.notes) {
+                  <p class="mt-1 text-sm text-stone-600 italic">“{{ b.customer.notes }}”</p>
+                }
+              </div>
+              <div class="flex items-center gap-3 text-sm">
+                <a [routerLink]="['/booking', b.id]" class="font-mono text-xs text-stone-400 hover:text-brand-700">{{ b.id }}</a>
+                @if (b.status === 'confirmed') {
+                  <button type="button" class="font-medium text-red-600 hover:text-red-800" (click)="cancel(b)">Cancel</button>
+                } @else {
+                  <span class="text-xs font-medium text-stone-500 uppercase">Cancelled</span>
+                }
+              </div>
+            </li>
+          }
+        </ul>
+      </section>
+    } @empty {
+      <p class="mt-10 rounded-xl bg-stone-100 p-6 text-center text-stone-600">No upcoming bookings yet.</p>
+    }
+  }
+</div>

@@ -1,0 +1,70 @@
+<div class="mx-auto max-w-2xl px-4 py-12 sm:px-6 sm:py-16">
+  @if (booking(); as b) {
+    @if (b.status === 'cancelled') {
+      <p class="text-sm font-semibold tracking-widest text-stone-500 uppercase">Cancelled</p>
+      <h1 class="mt-2 font-display text-3xl font-semibold text-stone-700">This appointment has been cancelled</h1>
+    } @else if (booked()) {
+      <div class="flex size-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+        <svg class="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+      </div>
+      <h1 class="mt-4 font-display text-3xl font-semibold text-brand-900">You're booked in, {{ b.customer.name.split(' ')[0] }}!</h1>
+      <p class="mt-2 text-stone-600">We look forward to seeing you. Please save your booking reference below.</p>
+    } @else {
+      <h1 class="font-display text-3xl font-semibold text-brand-900">Your appointment</h1>
+    }
+
+    <div class="card mt-8 divide-y divide-stone-100" [class.opacity-60]="b.status === 'cancelled'">
+      <div class="flex items-center justify-between p-6">
+        <span class="text-sm text-stone-500">Booking reference</span>
+        <span class="font-mono text-lg font-semibold tracking-wider text-brand-800">{{ b.id }}</span>
+      </div>
+      <dl class="grid grid-cols-[8rem_1fr] gap-y-3 p-6 text-sm">
+        <dt class="text-stone-500">Service</dt>
+        <dd class="font-medium text-stone-900">{{ service()?.name }}</dd>
+        @if (showStylist) {
+          <dt class="text-stone-500">Stylist</dt>
+          <dd class="text-stone-900">{{ stylist()?.name }}</dd>
+        }
+        <dt class="text-stone-500">Date</dt>
+        <dd class="text-stone-900">{{ b.date | longDate }}</dd>
+        <dt class="text-stone-500">Time</dt>
+        <dd class="text-stone-900">{{ b.start | time12 }} – {{ b.end | time12 }}</dd>
+        @if (service(); as s) {
+          <dt class="text-stone-500">Price</dt>
+          <dd class="text-stone-900">
+            from {{ s.priceFrom | currency: 'AUD' : 'symbol-narrow' : '1.0-0' }}
+            <span class="text-stone-400">· {{ s.durationMin | duration }}</span>
+          </dd>
+        }
+        <dt class="text-stone-500">Name</dt>
+        <dd class="text-stone-900">{{ b.customer.name }}</dd>
+      </dl>
+      <div class="p-6 text-sm text-stone-600">
+        <p>{{ salon.name }} · {{ salon.address }}</p>
+        <p class="mt-1">
+          Need to change something? Call us on
+          <a class="font-medium text-brand-700 hover:underline" [href]="'tel:' + salon.phone">{{ salon.phone }}</a>.
+        </p>
+      </div>
+    </div>
+
+    <div class="mt-8 flex flex-wrap gap-3">
+      @if (b.status === 'confirmed') {
+        <button type="button" class="btn-primary" (click)="downloadCalendar(b)">Add to calendar</button>
+        <button type="button" class="btn-secondary" (click)="cancel(b)">Cancel appointment</button>
+      } @else {
+        <a routerLink="/book" class="btn-primary">Make a new booking</a>
+      }
+      <a routerLink="/" class="btn-secondary">Back to home</a>
+    </div>
+  } @else {
+    <h1 class="font-display text-3xl font-semibold text-brand-900">Booking not found</h1>
+    <p class="mt-3 text-stone-600">
+      We couldn't find booking <span class="font-mono">{{ id() }}</span>. Please check the reference or call us on
+      <a class="text-brand-700 hover:underline" [href]="'tel:' + salon.phone">{{ salon.phone }}</a>.
+    </p>
+    <a routerLink="/book" class="btn-primary mt-8">Make a booking</a>
+  }
+</div>

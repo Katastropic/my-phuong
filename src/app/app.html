@@ -1,0 +1,78 @@
+<div class="flex min-h-dvh flex-col">
+  <header class="sticky top-0 z-20 border-b border-brand-100 bg-cream/90 backdrop-blur">
+    <nav class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
+      <a routerLink="/" class="font-display text-xl font-semibold tracking-tight text-brand-800 sm:text-2xl">
+        {{ salon.name }}
+      </a>
+
+      <div class="hidden items-center gap-8 text-sm font-medium text-stone-600 md:flex">
+        <a routerLink="/" fragment="services" class="hover:text-brand-700">Services</a>
+        <a routerLink="/" fragment="hours" class="hover:text-brand-700">Hours</a>
+        <a routerLink="/" fragment="contact" class="hover:text-brand-700">Contact</a>
+        <a routerLink="/book" routerLinkActive="ring-2 ring-brand-300" class="btn-primary">Book now</a>
+      </div>
+
+      <button
+        type="button"
+        class="rounded-lg p-2 text-stone-700 hover:bg-brand-50 md:hidden"
+        [attr.aria-expanded]="menuOpen()"
+        aria-label="Toggle menu"
+        (click)="menuOpen.set(!menuOpen())"
+      >
+        <svg class="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+          @if (menuOpen()) {
+            <path stroke-linecap="round" d="M6 6l12 12M18 6L6 18" />
+          } @else {
+            <path stroke-linecap="round" d="M4 7h16M4 12h16M4 17h16" />
+          }
+        </svg>
+      </button>
+    </nav>
+
+    @if (menuOpen()) {
+      <div class="border-t border-brand-100 px-4 pb-4 md:hidden" (click)="menuOpen.set(false)">
+        <a routerLink="/" fragment="services" class="block py-3 text-stone-700">Services</a>
+        <a routerLink="/" fragment="hours" class="block py-3 text-stone-700">Hours</a>
+        <a routerLink="/" fragment="contact" class="block py-3 text-stone-700">Contact</a>
+        <a routerLink="/book" class="btn-primary mt-2 w-full">Book now</a>
+      </div>
+    }
+  </header>
+
+  <main class="flex-1">
+    <router-outlet />
+  </main>
+
+  <footer class="bg-brand-100 text-brand-900">
+    <div class="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-3">
+      <div>
+        <p class="font-display text-xl text-brand-800">{{ salon.name }}</p>
+        <p class="mt-2 text-sm text-brand-700">{{ salon.tagline }}</p>
+      </div>
+      <div class="text-sm">
+        <p class="mb-3 font-semibold tracking-wide text-brand-800 uppercase">Visit</p>
+        <p>{{ salon.address }}</p>
+        <p class="mt-2"><a class="hover:text-brand-600" [href]="'tel:' + salon.phone">{{ salon.phone }}</a></p>
+        <p><a class="hover:text-brand-600" [href]="'mailto:' + salon.email">{{ salon.email }}</a></p>
+      </div>
+      <div class="text-sm">
+        <p class="mb-3 font-semibold tracking-wide text-brand-800 uppercase">Hours</p>
+        <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+          @for (day of hours; track day.name) {
+            <dt>{{ day.name }}</dt>
+            <dd class="text-brand-700">
+              @if (day.hours; as h) {
+                {{ h.open | time12 }} – {{ h.close | time12 }}
+              } @else {
+                Closed
+              }
+            </dd>
+          }
+        </dl>
+      </div>
+    </div>
+    <div class="border-t border-brand-200 py-4 text-center text-xs text-brand-700">
+      © {{ year }} {{ salon.name }} · <a routerLink="/admin" class="hover:text-brand-600">Staff</a>
+    </div>
+  </footer>
+</div>

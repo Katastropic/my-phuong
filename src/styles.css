@@ -1,0 +1,49 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Playfair Display', ui-serif, Georgia, serif;
+
+  /* Pastel pink. 50–300 are the soft backgrounds; 600+ stay dark enough for readable text and buttons. */
+  --color-cream: #fff8fa;
+  --color-brand-50: #fff1f5;
+  --color-brand-100: #ffe3ec;
+  --color-brand-200: #fdcadb;
+  --color-brand-300: #f9a8c3;
+  --color-brand-400: #f082a7;
+  --color-brand-500: #e0628d;
+  --color-brand-600: #c94574;
+  --color-brand-700: #a7365e;
+  --color-brand-800: #852e4e;
+  --color-brand-900: #642840;
+}
+
+@layer base {
+  body {
+    @apply bg-cream font-sans text-stone-800 antialiased;
+  }
+  [id] {
+    scroll-margin-top: 5rem;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-full bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-full border border-brand-200 bg-white px-5 py-2.5 text-sm font-semibold text-brand-700 transition hover:bg-brand-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600;
+  }
+  .card {
+    @apply rounded-2xl border border-brand-100 bg-white shadow-sm;
+  }
+  .field-label {
+    @apply mb-1.5 block text-sm font-medium text-stone-700;
+  }
+  .field-input {
+    @apply block w-full rounded-xl border border-stone-300 bg-white px-3.5 py-2.5 text-stone-900 shadow-xs placeholder:text-stone-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-200 focus:outline-none;
+  }
+  .field-error {
+    @apply mt-1 text-sm text-red-600;
+  }
+}

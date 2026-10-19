@@ -1,0 +1,190 @@
+<div class="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
+  <h1 class="font-display text-3xl font-semibold text-brand-900 sm:text-4xl">Book an appointment</h1>
+
+  <ol class="mt-8 grid grid-cols-3 gap-2 text-xs sm:text-sm">
+    @for (label of steps; track label; let i = $index) {
+      <li>
+        <button
+          type="button"
+          class="w-full border-t-4 pt-2 text-left font-medium transition"
+          [class]="step() >= i + 1 ? 'border-brand-500 text-brand-700' : 'border-stone-200 text-stone-400'"
+          (click)="goTo(i + 1)"
+        >
+          <span class="hidden sm:inline">Step {{ i + 1 }} · </span>{{ label }}
+        </button>
+      </li>
+    }
+  </ol>
+
+  <div class="mt-10 grid gap-8 lg:grid-cols-[1fr_18rem]">
+    <div>
+      @switch (step()) {
+        @case (1) {
+          <h2 class="text-lg font-semibold text-stone-900">What would you like done?</h2>
+          @for (group of categories; track group.category) {
+            <h3 class="mt-8 mb-3 text-xs font-semibold tracking-widest text-brand-600 uppercase">{{ group.category }}</h3>
+            <div class="grid gap-3 sm:grid-cols-2">
+              @for (s of group.services; track s.id) {
+                <button
+                  type="button"
+                  class="card p-4 text-left transition hover:border-brand-300 hover:shadow-md"
+                  [class.ring-2]="serviceId() === s.id"
+                  [class.ring-brand-500]="serviceId() === s.id"
+                  (click)="chooseService(s.id)"
+                >
+                  <div class="flex items-baseline justify-between gap-3">
+                    <span class="font-medium text-stone-900">{{ s.name }}</span>
+                    <span class="shrink-0 text-sm font-semibold text-brand-700">
+                      {{ s.priceFrom | currency: 'AUD' : 'symbol-narrow' : '1.0-0' }}+
+                    </span>
+                  </div>
+                  <p class="mt-1 text-sm text-stone-500">{{ s.description }}</p>
+                  <p class="mt-2 text-xs text-stone-400">{{ s.durationMin | duration }}</p>
+                </button>
+              }
+            </div>
+          }
+        }
+
+        @case (2) {
+          @if (error(); as message) {
+            <p class="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">{{ message }}</p>
+          }
+
+          @if (stylists.length > 1) {
+            <h2 class="text-lg font-semibold text-stone-900">Who would you like?</h2>
+            <div class="mt-3 mb-8 flex flex-wrap gap-2">
+              @for (option of stylistOptions; track option.id) {
+                <button
+                  type="button"
+                  class="rounded-full border px-4 py-2 text-sm font-medium transition"
+                  [class]="stylistId() === option.id ? 'border-brand-600 bg-brand-600 text-white' : 'border-stone-300 bg-white text-stone-700 hover:border-brand-400'"
+                  (click)="chooseStylist(option.id)"
+                >
+                  {{ option.name }}
+                </button>
+              }
+            </div>
+          }
+
+          <h2 class="text-lg font-semibold text-stone-900">Pick a day</h2>
+          <div class="-mx-4 mt-3 flex snap-x gap-2 overflow-x-auto px-4 pb-3 sm:mx-0 sm:flex-wrap sm:px-0">
+            @for (day of days; track day.date) {
+              <button
+                type="button"
+                class="flex w-16 shrink-0 snap-start flex-col items-center rounded-xl border py-2 text-sm transition"
+                [class]="
+                  day.closed
+                    ? 'cursor-not-allowed border-stone-100 bg-stone-50 text-stone-300'
+                    : date() === day.date
+                      ? 'border-brand-600 bg-brand-600 text-white'
+                      : 'border-stone-200 bg-white text-stone-700 hover:border-brand-400'
+                "
+                [disabled]="day.closed"
+                [attr.aria-pressed]="date() === day.date"
+                [attr.aria-label]="day.date | longDate"
+                (click)="chooseDate(day.date)"
+              >
+                <span class="text-xs uppercase">{{ day.weekday }}</span>
+                <span class="text-lg font-semibold">{{ day.day }}</span>
+                <span class="text-xs">{{ day.month }}</span>
+              </button>
+            }
+          </div>
+
+          @if (date(); as d) {
+            <h2 class="mt-8 text-lg font-semibold text-stone-900">Available times on {{ d | longDate }}</h2>
+            @if (slots().length) {
+              <div class="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5">
+                @for (slot of slots(); track slot.time) {
+                  <button
+                    type="button"
+                    class="rounded-xl border py-2.5 text-sm font-medium transition"
+                    [class]="time() === slot.time ? 'border-brand-600 bg-brand-600 text-white' : 'border-stone-200 bg-white text-stone-700 hover:border-brand-400'"
+                    (click)="time.set(slot.time); error.set(null)"
+                  >
+                    {{ slot.time | time12 }}
+                  </button>
+                }
+              </div>
+            } @else {
+              <p class="mt-3 rounded-xl bg-stone-100 p-4 text-sm text-stone-600">
+                Sorry, we're fully booked for this service that day. Please try another day.
+              </p>
+            }
+          }
+
+          <div class="mt-10 flex justify-between">
+            <button type="button" class="btn-secondary" (click)="goTo(1)">← Back</button>
+            <button type="button" class="btn-primary" [disabled]="!time()" (click)="goTo(3)">Continue →</button>
+          </div>
+        }
+
+        @case (3) {
+          <h2 class="text-lg font-semibold text-stone-900">Your details</h2>
+          <form class="mt-6 space-y-5" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+            <div>
+              <label class="field-label" for="name">Full name</label>
+              <input id="name" class="field-input" formControlName="name" autocomplete="name" />
+              @if (invalid('name')) {
+                <p class="field-error">Please enter your name.</p>
+              }
+            </div>
+            <div class="grid gap-5 sm:grid-cols-2">
+              <div>
+                <label class="field-label" for="phone">Mobile number</label>
+                <input id="phone" type="tel" class="field-input" formControlName="phone" autocomplete="tel" placeholder="04xx xxx xxx" />
+                @if (invalid('phone')) {
+                  <p class="field-error">Please enter a valid phone number.</p>
+                }
+              </div>
+              <div>
+                <label class="field-label" for="email">Email</label>
+                <input id="email" type="email" class="field-input" formControlName="email" autocomplete="email" />
+                @if (invalid('email')) {
+                  <p class="field-error">Please enter a valid email address.</p>
+                }
+              </div>
+            </div>
+            <div>
+              <label class="field-label" for="notes">Anything we should know? <span class="text-stone-400">(optional)</span></label>
+              <textarea
+                id="notes"
+                rows="3"
+                class="field-input"
+                formControlName="notes"
+                placeholder="e.g. hair length, allergies, inspiration photos to bring"
+              ></textarea>
+            </div>
+
+            <div class="flex justify-between pt-4">
+              <button type="button" class="btn-secondary" (click)="goTo(2)">← Back</button>
+              <button type="submit" class="btn-primary">Confirm booking</button>
+            </div>
+          </form>
+        }
+      }
+    </div>
+
+    <aside class="card h-fit p-6 lg:sticky lg:top-24">
+      <h2 class="text-xs font-semibold tracking-widest text-brand-600 uppercase">Your appointment</h2>
+      @if (selectedService(); as s) {
+        <p class="mt-3 font-display text-lg font-semibold text-stone-900">{{ s.name }}</p>
+        <p class="text-sm text-stone-500">
+          {{ s.durationMin | duration }} · from {{ s.priceFrom | currency: 'AUD' : 'symbol-narrow' : '1.0-0' }}
+        </p>
+        @if (stylists.length > 1) {
+          <p class="mt-3 text-sm text-stone-700">With {{ selectedStylist()?.name ?? 'any stylist' }}</p>
+        }
+        @if (date(); as d) {
+          <p class="mt-3 text-sm text-stone-700">{{ d | longDate }}</p>
+        }
+        @if (time(); as t) {
+          <p class="text-sm font-semibold text-brand-700">{{ t | time12 }}</p>
+        }
+      } @else {
+        <p class="mt-3 text-sm text-stone-500">Choose a service to get started.</p>
+      }
+    </aside>
+  </div>
+</div>
