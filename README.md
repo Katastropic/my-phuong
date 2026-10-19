@@ -1,16 +1,22 @@
 # my-phuong
 Hairdressing booking website for my mother ;)
 
-Built with Angular 22 and Tailwind CSS 4.
+Built with Angular 22 and Tailwind CSS 4, with a small Node API (Hono + SQLite) in `server/`.
 
 ## Running it
 
 ```bash
 npm install
-npm start          # http://localhost:4200
-npm test           # unit tests (Vitest)
-npm run build      # production build in dist/my-phuong
+cp .env.example .env   # once: set the staff password
+npm run server         # API on :3000
+npm start              # site on http://localhost:4200 (forwards /api to the API)
+npm test               # frontend unit tests (Vitest)
+npm run test:server    # API tests
+npm run build          # production build in dist/my-phuong
+npm run build:server   # API bundled into dist/server/main.mjs
 ```
+
+Running it behind nginx, locally or on a server: see [`deploy/README.md`](deploy/README.md).
 
 ## Pages
 
@@ -19,7 +25,7 @@ npm run build      # production build in dist/my-phuong
 | `/` | Home page: intro, services & prices, contact details, opening hours |
 | `/book` | 3-step booking: service → day & time → contact details. `/book?service=<id>` skips to step 2 |
 | `/booking/<ref>` | Booking confirmation: add to calendar or cancel |
-| `/admin` | Staff list of bookings, with cancel (PIN in `salon.config.ts`, default `1234`) |
+| `/admin` | Staff list of bookings, with cancel (password is `ADMIN_PASSWORD` in `.env`) |
 
 ## Customising
 
@@ -30,9 +36,6 @@ stylists and the services/prices list. Colours and fonts are in
 
 ## Before going live
 
-Bookings are currently saved in the visitor's browser (`localStorage`), so the
-salon **can't see bookings made on customers' phones yet**. To take real
-bookings, replace `load`/`persist` in
-[`src/app/booking.service.ts`](src/app/booking.service.ts) with calls to a
-backend (e.g. Firebase, Supabase or a small API) and swap the admin PIN for
-real login. Email/SMS confirmations would also be done from that backend.
+- Set a strong `ADMIN_PASSWORD` and a random `SESSION_SECRET` on the server.
+- Set up nightly backups of the SQLite database (see `deploy/README.md`).
+- Email/SMS confirmations aren't built yet; they'd go in the API.

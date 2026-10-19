@@ -1,8 +1,9 @@
 import { CurrencyPipe } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BookingService } from '../../booking.service';
-import { Booking } from '../../models';
+import { PublicBooking } from '../../models';
 import { DurationPipe, LongDatePipe, Time12Pipe } from '../../format.pipes';
 import { SALON, STYLISTS, findService, findStylist } from '../../salon.config';
 
@@ -20,15 +21,25 @@ export class BookingDetails {
 
   protected readonly salon = SALON;
   protected readonly showStylist = STYLISTS.length > 1;
-  protected readonly booking = computed(() => this.bookings.get(this.id()));
-  protected readonly service = computed(() => findService(this.booking()?.serviceId));
-  protected readonly stylist = computed(() => findStylist(this.booking()?.stylistId));
+  protected readonly booking = this.bookings.bookingResource(this.id);
+  protected readonly notFound = computed(() => (this.booking.error() as HttpErrorResponse | undefined)?.status === 404);
+  protected readonly service = computed(() =>
+    this.booking.hasValue() ? findService(this.booking.value().serviceId) : undefined,
+  );
+  protected readonly stylist = computed(() =>
+    this.booking.hasValue() ? findStylist(this.booking.value().stylistId) : undefined,
+  );
 
-  protected cancel(booking: Booking): void {
-    if (confirm('Cancel this appointment?')) this.bookings.cancel(booking.id);
+  protected async cancel(booking: PublicBooking): Promise<void> {
+    if (!confirm('Cancel this appointment?')) return;
+    try {
+      this.booking.set(await this.bookings.cancel(booking.id));
+    } catch {
+      alert(`Sorry, we couldn't cancel that just now. Please call us on ${SALON.phone}.`);
+    }
   }
 
-  protected downloadCalendar(booking: Booking): void {
+  protected downloadCalendar(booking: PublicBooking): void {
     const stamp = (date: string, time: string) => `${date.replaceAll('-', '')}T${time.replace(':', '')}00`;
     const ics = [
       'BEGIN:VCALENDAR',

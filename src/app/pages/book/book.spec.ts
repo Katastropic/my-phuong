@@ -1,6 +1,8 @@
-import { TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
-import { BookingService } from '../../booking.service';
+import { Booking, BookingRequest } from '../../models';
 import { Book } from './book';
 
 function buttons(root: HTMLElement, text: string | RegExp): HTMLButtonElement[] {
@@ -16,50 +18,93 @@ function type(root: HTMLElement, selector: string, value: string): void {
 }
 
 describe('Book', () => {
-  beforeEach(() => {
-    localStorage.clear();
-    TestBed.configureTestingModule({ imports: [Book], providers: [provideRouter([])] });
-  });
+  let http: HttpTestingController;
+  let fixture: ComponentFixture<Book>;
+  let el: HTMLElement;
 
-  it('books a slot end to end and stops offering it', async () => {
-    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
-    const fixture = TestBed.createComponent(Book);
+  beforeEach(async () => {
+    TestBed.configureTestingModule({
+      imports: [Book],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    });
+    http = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(Book);
     fixture.componentRef.setInput('service', 'mens-cut');
     await fixture.whenStable();
-    const el = fixture.nativeElement as HTMLElement;
+    el = fixture.nativeElement as HTMLElement;
+  });
 
-    // Step 2: last open day (never today, so it always has free times), then its first time.
+  afterEach(() => http.verify());
+
+  /** Picks the last open day, answers the slot request, picks 10:00 and fills in the form. */
+  async function reachDetailsStep(): Promise<string> {
     const day = [...el.querySelectorAll<HTMLButtonElement>('button[aria-label]')].filter((b) => !b.disabled).at(-1)!;
     day.click();
+    TestBed.tick();
+    const slotsReq = http.expectOne((r) => r.url === '/api/slots');
+    const date = slotsReq.request.params.get('date')!;
+    expect(slotsReq.request.params.get('serviceId')).toBe('mens-cut');
+    slotsReq.flush([
+      { time: '09:30', stylistIds: ['phuong'] },
+      { time: '10:00', stylistIds: ['phuong'] },
+    ]);
     await fixture.whenStable();
-    const firstSlot = buttons(el, /\d:\d\d [ap]m/)[0];
-    const time = firstSlot.textContent!.trim();
-    firstSlot.click();
+
+    buttons(el, '10:00 am')[0].click();
     await fixture.whenStable();
     buttons(el, 'Continue')[0].click();
     await fixture.whenStable();
 
-    // Step 3: empty form is rejected, filled form books.
-    buttons(el, 'Confirm booking')[0].click();
-    await fixture.whenStable();
-    expect(el.textContent).toContain('Please enter your name.');
-
     type(el, '#name', 'Jane Citizen');
     type(el, '#phone', '0412 345 678');
     type(el, '#email', 'jane@example.com');
+    return date;
+  }
+
+  it('rejects an empty form, then posts the booking and opens its page', async () => {
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const date = await reachDetailsStep();
+
+    type(el, '#name', '');
     buttons(el, 'Confirm booking')[0].click();
     await fixture.whenStable();
+    expect(el.textContent).toContain('Please enter your name.');
+    http.expectNone('/api/bookings');
 
-    const [booking] = TestBed.inject(BookingService).all();
-    expect(booking.customer.name).toBe('Jane Citizen');
-    expect(booking.serviceId).toBe('mens-cut');
-    expect(navigate).toHaveBeenCalledWith(['/booking', booking.id], { queryParams: { booked: 1 } });
-    expect(JSON.parse(localStorage.getItem('my-phuong.bookings')!)).toHaveLength(1);
+    type(el, '#name', 'Jane Citizen');
+    buttons(el, 'Confirm booking')[0].click();
+    const req = http.expectOne({ method: 'POST', url: '/api/bookings' });
+    expect(req.request.body as BookingRequest).toEqual({
+      serviceId: 'mens-cut',
+      stylistId: 'phuong',
+      date,
+      start: '10:00',
+      customer: { name: 'Jane Citizen', phone: '0412 345 678', email: 'jane@example.com', notes: '' },
+    });
+    req.flush({ ...req.request.body, id: 'MP-ABC234', end: '10:30', status: 'confirmed' } as Booking, {
+      status: 201,
+      statusText: 'Created',
+    });
+    await fixture.whenStable();
 
-    const remaining = TestBed.inject(BookingService)
-      .slotsFor('mens-cut', booking.stylistId, booking.date)
-      .map((s) => s.time);
-    expect(remaining).not.toContain(booking.start);
-    expect(time).toMatch(/am|pm/);
+    expect(navigate).toHaveBeenCalledWith(['/booking', 'MP-ABC234'], { queryParams: { booked: 1 } });
+  });
+
+  it('goes back to the times, refreshed, when the slot was just taken', async () => {
+    await reachDetailsStep();
+
+    buttons(el, 'Confirm booking')[0].click();
+    http
+      .expectOne({ method: 'POST', url: '/api/bookings' })
+      .flush({ error: 'taken' }, { status: 409, statusText: 'Conflict' });
+    // Can't use whenStable yet: it would wait for the slot reload this test hasn't answered.
+    await new Promise((resolve) => setTimeout(resolve));
+    TestBed.tick();
+    http.expectOne((r) => r.url === '/api/slots').flush([{ time: '09:30', stylistIds: ['phuong'] }]);
+    await fixture.whenStable();
+
+    expect(el.textContent).toContain('that time has just been taken');
+    expect(el.textContent).toContain('Pick a day');
+    expect(buttons(el, '10:00 am')).toHaveLength(0);
   });
 });

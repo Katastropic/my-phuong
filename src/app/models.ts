@@ -45,6 +45,19 @@ export interface Booking {
   createdAt: string;
 }
 
+/** What the booking form sends to `POST /api/bookings`. */
+export interface BookingRequest {
+  serviceId: string;
+  /** A stylist id, or 'any' to take whoever is free. */
+  stylistId: string;
+  date: string;
+  start: string;
+  customer: Customer;
+}
+
+/** A booking as anyone with its reference may see it: contact details left out. */
+export type PublicBooking = Omit<Booking, 'customer'> & { customer: Pick<Customer, 'name'> };
+
 export interface Slot {
   time: string;
   /** Stylists free for the whole appointment starting at this time. */

@@ -94,9 +94,16 @@
 
           @if (date(); as d) {
             <h2 class="mt-8 text-lg font-semibold text-stone-900">Available times on {{ d | longDate }}</h2>
-            @if (slots().length) {
+            @if (slots.isLoading()) {
+              <p class="mt-3 text-sm text-stone-500">Checking available times…</p>
+            } @else if (slots.error()) {
+              <p class="mt-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+                Sorry, we couldn't load times just now.
+                <button type="button" class="font-medium underline" (click)="slots.reload()">Try again</button>
+              </p>
+            } @else if (slots.value().length) {
               <div class="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5">
-                @for (slot of slots(); track slot.time) {
+                @for (slot of slots.value(); track slot.time) {
                   <button
                     type="button"
                     class="rounded-xl border py-2.5 text-sm font-medium transition"
@@ -122,6 +129,9 @@
 
         @case (3) {
           <h2 class="text-lg font-semibold text-stone-900">Your details</h2>
+          @if (error(); as message) {
+            <p class="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{{ message }}</p>
+          }
           <form class="mt-6 space-y-5" [formGroup]="form" (ngSubmit)="submit()" novalidate>
             <div>
               <label class="field-label" for="name">Full name</label>
@@ -159,7 +169,9 @@
 
             <div class="flex justify-between pt-4">
               <button type="button" class="btn-secondary" (click)="goTo(2)">← Back</button>
-              <button type="submit" class="btn-primary">Confirm booking</button>
+              <button type="submit" class="btn-primary" [disabled]="submitting()">
+                {{ submitting() ? 'Booking…' : 'Confirm booking' }}
+              </button>
             </div>
           </form>
         }

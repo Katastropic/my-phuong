@@ -1,11 +1,13 @@
 <div class="mx-auto max-w-4xl px-4 py-12 sm:px-6">
-  @if (!unlocked()) {
-    <form class="card mx-auto max-w-sm p-8" (submit)="$event.preventDefault(); unlock(pin.value)">
+  @if (loggedIn() === null) {
+    <p class="text-center text-stone-500">Loading…</p>
+  } @else if (!loggedIn()) {
+    <form class="card mx-auto max-w-sm p-8" (submit)="$event.preventDefault(); login(password.value)">
       <h1 class="font-display text-2xl font-semibold text-brand-900">Staff login</h1>
-      <label class="field-label mt-6" for="pin">PIN</label>
-      <input #pin id="pin" type="password" inputmode="numeric" autocomplete="current-password" class="field-input" (input)="pinError.set(false)" />
-      @if (pinError()) {
-        <p class="field-error">That PIN isn't right.</p>
+      <label class="field-label mt-6" for="password">Password</label>
+      <input #password id="password" type="password" autocomplete="current-password" class="field-input" (input)="loginError.set(null)" />
+      @if (loginError(); as message) {
+        <p class="field-error">{{ message }}</p>
       }
       <button type="submit" class="btn-primary mt-6 w-full">View bookings</button>
     </form>
@@ -13,13 +15,23 @@
     <div class="flex flex-wrap items-end justify-between gap-4">
       <div>
         <h1 class="font-display text-3xl font-semibold text-brand-900">Bookings</h1>
-        <p class="mt-1 text-sm text-stone-500">Bookings made in this browser.</p>
+        <p class="mt-1 text-sm text-stone-500">All online bookings.</p>
       </div>
-      <label class="flex items-center gap-2 text-sm text-stone-600">
-        <input type="checkbox" class="accent-brand-600" [checked]="showPast()" (change)="showPast.set(!showPast())" />
-        Show past bookings
-      </label>
+      <div class="flex items-center gap-6 text-sm text-stone-600">
+        <label class="flex items-center gap-2">
+          <input type="checkbox" class="accent-brand-600" [checked]="showPast()" (change)="showPast.set(!showPast())" />
+          Show past bookings
+        </label>
+        <button type="button" class="font-medium hover:text-brand-700" (click)="logout()">Log out</button>
+      </div>
     </div>
+
+    @if (list.error()) {
+      <p class="mt-10 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+        Couldn't load bookings.
+        <button type="button" class="font-medium underline" (click)="list.reload()">Try again</button>
+      </p>
+    }
 
     @for (day of days(); track day.date) {
       <section class="mt-10">

@@ -1,18 +1,7 @@
-import { Injectable, computed, signal } from '@angular/core';
-import { Booking, Customer, Slot } from './models';
-import { SALON, STYLISTS, findService } from './salon.config';
-import { availableSlots, fromMinutes, toMinutes } from './time';
-
-const STORAGE_KEY = 'my-phuong.bookings';
-
-export interface BookingRequest {
-  serviceId: string;
-  /** A stylist id, or 'any' to take whoever is free. */
-  stylistId: string;
-  date: string;
-  start: string;
-  customer: Customer;
-}
+import { HttpClient, HttpErrorResponse, httpResource } from '@angular/common/http';
+import { Injectable, inject } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
+import { Booking, BookingRequest, PublicBooking, Slot } from './models';
 
 export class SlotTakenError extends Error {
   constructor() {
@@ -20,90 +9,79 @@ export class SlotTakenError extends Error {
   }
 }
 
+export interface SlotQuery {
+  serviceId: string;
+  stylistId: string;
+  date: string;
+}
+
 /**
- * Stores bookings in this browser's localStorage. That is enough to try the
- * site out, but bookings made on one device are not visible on another: swap
- * `load`/`persist` for calls to a real backend before going live.
+ * Talks to the booking API in `server/`. In development `ng serve` proxies /api to it
+ * (proxy.conf.json); in production nginx does (deploy/nginx/my-phuong.conf).
+ *
+ * The `…Resource` methods must be called from a component field initializer (injection context);
+ * they refetch whenever the signals they read change.
  */
 @Injectable({ providedIn: 'root' })
 export class BookingService {
-  private readonly bookings = signal<Booking[]>(load());
+  private readonly http = inject(HttpClient);
 
-  readonly all = computed(() =>
-    [...this.bookings()].sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start)),
-  );
-
-  get(id: string): Booking | undefined {
-    return this.bookings().find((b) => b.id === id.toUpperCase());
+  slotsResource(query: () => SlotQuery | undefined) {
+    return httpResource<Slot[]>(
+      () => {
+        const q = query();
+        return q ? { url: '/api/slots', params: { ...q } } : undefined;
+      },
+      { defaultValue: [] },
+    );
   }
 
-  slotsFor(serviceId: string, stylistId: string, date: string, now = new Date()): Slot[] {
-    const service = findService(serviceId);
-    if (!service) return [];
-    return availableSlots({
-      date,
-      durationMin: service.durationMin,
-      hours: SALON.hours,
-      stylistIds: stylistId === 'any' ? STYLISTS.map((s) => s.id) : [stylistId],
-      bookings: this.bookings(),
-      stepMin: SALON.slotStepMin,
-      notBefore: new Date(now.getTime() + SALON.minNoticeMin * 60_000),
-    });
+  bookingResource(id: () => string) {
+    return httpResource<PublicBooking>(() => `/api/bookings/${encodeURIComponent(id())}`);
   }
 
-  create(req: BookingRequest): Booking {
-    const service = findService(req.serviceId);
-    if (!service) throw new Error(`Unknown service ${req.serviceId}`);
-
-    // Re-check right before saving in case the slot went while the form was being filled in.
-    const slot = this.slotsFor(req.serviceId, req.stylistId, req.date).find((s) => s.time === req.start);
-    if (!slot) throw new SlotTakenError();
-
-    const booking: Booking = {
-      id: newReference(),
-      serviceId: service.id,
-      stylistId: slot.stylistIds[0],
-      date: req.date,
-      start: req.start,
-      end: fromMinutes(toMinutes(req.start) + service.durationMin),
-      customer: req.customer,
-      status: 'confirmed',
-      createdAt: new Date().toISOString(),
-    };
-    this.update((list) => [...list, booking]);
-    return booking;
+  async create(req: BookingRequest): Promise<Booking> {
+    try {
+      return await firstValueFrom(this.http.post<Booking>('/api/bookings', req));
+    } catch (e) {
+      if (e instanceof HttpErrorResponse && e.status === 409) throw new SlotTakenError();
+      throw e;
+    }
   }
 
-  cancel(id: string): void {
-    this.update((list) => list.map((b) => (b.id === id ? { ...b, status: 'cancelled' } : b)));
+  cancel(id: string): Promise<PublicBooking> {
+    return firstValueFrom(this.http.post<PublicBooking>(`/api/bookings/${encodeURIComponent(id)}/cancel`, {}));
   }
 
-  private update(fn: (list: Booking[]) => Booking[]): void {
-    this.bookings.update(fn);
-    persist(this.bookings());
-  }
-}
+  // --- Staff ---
 
-function load(): Booking[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as Booking[]) : [];
-  } catch {
-    return [];
+  async isLoggedIn(): Promise<boolean> {
+    const res = await firstValueFrom(this.http.get<{ loggedIn: boolean }>('/api/admin/session'));
+    return res.loggedIn;
   }
-}
 
-function persist(bookings: Booking[]): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(bookings));
-  } catch {
-    // Storage unavailable (private mode, quota): bookings survive only this session.
+  /** Resolves to an error message, or null on success. */
+  async login(password: string): Promise<string | null> {
+    try {
+      await firstValueFrom(this.http.post('/api/admin/login', { password }));
+      return null;
+    } catch (e) {
+      if (e instanceof HttpErrorResponse && e.status === 401) return "That password isn't right.";
+      if (e instanceof HttpErrorResponse && e.status === 429) return 'Too many attempts. Please wait a minute.';
+      throw e;
+    }
   }
-}
 
-/** Short, easy-to-read-over-the-phone reference such as "MP-7K3QXD". */
-function newReference(): string {
-  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  const bytes = crypto.getRandomValues(new Uint8Array(6));
-  return 'MP-' + Array.from(bytes, (b) => alphabet[b % alphabet.length]).join('');
+  async logout(): Promise<void> {
+    await firstValueFrom(this.http.post('/api/admin/logout', {}));
+  }
+
+  /** All bookings with contact details. Only fetches while `enabled()` is true. */
+  adminBookingsResource(enabled: () => boolean) {
+    return httpResource<Booking[]>(() => (enabled() ? '/api/admin/bookings' : undefined), { defaultValue: [] });
+  }
+
+  adminCancel(id: string): Promise<Booking> {
+    return firstValueFrom(this.http.post<Booking>(`/api/admin/bookings/${encodeURIComponent(id)}/cancel`, {}));
+  }
 }

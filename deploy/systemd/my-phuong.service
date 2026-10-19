@@ -1,0 +1,38 @@
+# systemd keeps the API running: starts it on boot and restarts it if it crashes.
+#
+# Install:  sudo cp deploy/systemd/my-phuong.service /etc/systemd/system/
+#           sudo systemctl daemon-reload
+#           sudo systemctl enable --now my-phuong
+# Logs:     journalctl -u my-phuong -f
+
+[Unit]
+Description=Phuong Hair Studio booking API
+After=network.target
+
+[Service]
+# A dedicated user with no login, so a bug in the app can't touch the rest of the system.
+User=myphuong
+Group=myphuong
+WorkingDirectory=/opt/my-phuong
+
+# ADMIN_PASSWORD and SESSION_SECRET live here, readable only by root (chmod 600).
+EnvironmentFile=/etc/my-phuong.env
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=DATABASE_PATH=/var/lib/my-phuong/bookings.db
+
+ExecStart=/usr/bin/node /opt/my-phuong/server/main.mjs
+Restart=on-failure
+RestartSec=2
+
+# Creates /var/lib/my-phuong owned by the user above: the database lives there.
+StateDirectory=my-phuong
+
+# Hardening: the whole filesystem is read-only to the app except its StateDirectory.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

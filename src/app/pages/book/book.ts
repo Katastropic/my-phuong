@@ -33,13 +33,14 @@ export class Book {
   protected readonly date = signal<string | null>(null);
   protected readonly time = signal<string | null>(null);
   protected readonly error = signal<string | null>(null);
+  protected readonly submitting = signal(false);
 
   protected readonly selectedService = computed(() => findService(this.serviceId()));
   protected readonly selectedStylist = computed(() => findStylist(this.stylistId()));
-  protected readonly slots = computed(() => {
+  protected readonly slots = this.bookings.slotsResource(() => {
     const serviceId = this.serviceId();
     const date = this.date();
-    return serviceId && date ? this.bookings.slotsFor(serviceId, this.stylistId(), date) : [];
+    return serviceId && date ? { serviceId, stylistId: this.stylistId(), date } : undefined;
   });
 
   protected readonly form = inject(FormBuilder).nonNullable.group({
@@ -71,7 +72,7 @@ export class Book {
     }
   }
 
-  protected submit(): void {
+  protected async submit(): Promise<void> {
     const serviceId = this.serviceId();
     const date = this.date();
     const time = this.time();
@@ -79,8 +80,10 @@ export class Book {
       this.form.markAllAsTouched();
       return;
     }
+    this.submitting.set(true);
+    this.error.set(null);
     try {
-      const booking = this.bookings.create({
+      const booking = await this.bookings.create({
         serviceId,
         stylistId: this.stylistId(),
         date,
@@ -89,10 +92,16 @@ export class Book {
       });
       this.router.navigate(['/booking', booking.id], { queryParams: { booked: 1 } });
     } catch (e) {
-      if (!(e instanceof SlotTakenError)) throw e;
-      this.error.set(e.message);
-      this.time.set(null);
-      this.step.set(2);
+      if (e instanceof SlotTakenError) {
+        this.error.set(e.message);
+        this.time.set(null);
+        this.step.set(2);
+        this.slots.reload();
+      } else {
+        this.error.set("Sorry, we couldn't save your booking. Please try again, or give us a call.");
+      }
+    } finally {
+      this.submitting.set(false);
     }
   }
 

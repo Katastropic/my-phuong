@@ -6,16 +6,16 @@ import { OpeningHours, Service, Stylist } from './models';
  */
 export const SALON = {
   name: 'Phuong Hair Studio',
-  tagline: 'Friendly, relaxed hairdressing in the heart of Adelaide.',
-  phone: '08 8000 0000',
+  tagline: 'My mother\'s hair studio, in the north suburbs of Adelaide.',
+  phone: '0433 550 941',
   email: 'hello@phuonghair.example',
-  address: '123 Example Street, Adelaide SA 5000',
-  mapUrl: 'https://maps.google.com/?q=Adelaide+SA+5000',
+  address: '22 First Avenue, Woodville Gardens SA 5012',
+  mapUrl: 'https://maps.app.goo.gl/uyMNkjxGyTzx2Smt5',
 
   /** 0 = Sunday … 6 = Saturday. */
   hours: {
     0: null,
-    1: null,
+    1: { open: '09:00', close: '17:30' },
     2: { open: '09:00', close: '17:30' },
     3: { open: '09:00', close: '17:30' },
     4: { open: '09:00', close: '19:00' },
@@ -30,11 +30,8 @@ export const SALON = {
   /** Gap between offered start times. */
   slotStepMin: 30,
 
-  /**
-   * Client-side only: it keeps casual visitors out of the bookings page but is
-   * not real security. Replace with proper auth once there is a backend.
-   */
-  adminPin: '1234',
+  /** Opening hours and booking times are in this time zone; the server runs on it. */
+  timeZone: 'Australia/Adelaide',
 };
 
 /** Add more stylists here; the booking page shows a stylist picker when there is more than one. */
